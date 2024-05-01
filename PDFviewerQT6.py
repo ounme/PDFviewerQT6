@@ -79,6 +79,18 @@ class PDFReader(QMainWindow):
             last_page = self.history[last_opened_file]  # Get the page where the last document was stopped
             self.openFile(last_opened_file, last_page)  # Open the last document on startup
 
+
+        #TODO commit theme mode to save into another history file and upload when open file
+        # Enable light mode
+        self.graphicsView.setBackgroundBrush(Qt.GlobalColor.gray)  # Set gray background
+        self.treeWidget.setStyleSheet("QTreeWidget { background-color: #FFF; color: #000;  border: 0px solid;}")   # Modify table of contents styles
+        self.sideWidget.setStyleSheet("background-color: #FFF;")
+        self.dark_mode_toggle._text_color = QColor("#000")
+        self.dark_PDF_toggle._text_color = QColor("#000")
+        # Устанавливаем стили для заголовка QTreeWidget
+        self.header.setStyleSheet("QHeaderView::section { background-color: #FFF; color: #000; }")  # Set styles for QTreeWidget header
+        self.dark_mode_toggle.setText(" Dark Mode" )
+
     def toggleDarkMode(self, checked):
         # Logic to toggle between dark mode and light mode
         if checked:
@@ -317,7 +329,10 @@ class PDFReader(QMainWindow):
         page_num = item.data(0, Qt.ItemDataRole.UserRole)  # Get page number from item's user data
         if page_num is not None:
             self.current_page = page_num - 1  # Set current page (subtracting 1 for zero-based indexing)
-            self.showPage()  # Display the selected PDF page.
+            if self.dark_pdf_enabled:
+                self.showInvertedPage()  # Display previous page with inversion
+            else:
+                self.showPage()  # Display previous page without inversion
 
     def onContentsClicked(self, item):
         """Обрабатывает нажатие на элемент оглавления."""
