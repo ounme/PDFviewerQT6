@@ -1,7 +1,7 @@
 
 import sys
 import json
-from PyQt6.QtWidgets import QVBoxLayout, QMessageBox, QApplication, QMainWindow, QTreeWidget, QTreeWidgetItem, QWidget, QListWidgetItem, QListWidget, QGraphicsView, QGraphicsScene, QHBoxLayout, QPushButton, QFileDialog
+from PyQt6.QtWidgets import QScrollBar, QVBoxLayout, QMessageBox, QApplication, QMainWindow, QTreeWidget, QTreeWidgetItem, QWidget, QListWidgetItem, QListWidget, QGraphicsView, QGraphicsScene, QHBoxLayout, QPushButton, QFileDialog
 from PyQt6.QtGui import QColor, QImage, QPixmap, QAction, qGray, qRgb, qRed, qGreen, qBlue, QVector4D
 from PyQt6.QtCore import Qt
 from collections import OrderedDict
@@ -64,9 +64,21 @@ class PDFReader(QMainWindow):
 
         self.graphicsView = QGraphicsView()  # Use QGraphicsView to display PDF pages
 
+        self.graphicsView.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.graphicsView.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
         
+        # Добавляем QScrollBar для навигации по страницам
+        self.scrollBar = QScrollBar()
+        self.scrollBar.setOrientation(Qt.Orientation.Vertical)
+        self.scrollBar.setRange(0, self.last_page)  # Устанавливаем диапазон от 0 до последней страницы
+        self.scrollBar.valueChanged.connect(self.onScrollBarValueChanged)  # Связываем сигнал valueChanged со слотом
+
+        
+
         layout.addWidget(self.sideWidget, 10)
-        layout.addWidget(self.graphicsView, 70)  # QGraphicsView takes 70% of the window width
+        layout.addWidget(self.graphicsView, 67)  # QGraphicsView takes 70% of the window width
+        layout.addWidget(self.scrollBar)  # Добавляем QScrollBar в layout
         layout.addWidget(self.treeWidget, 20)  # QTreeWidget takes 20% of the window width
 
         self.setCentralWidget(centralWidget)  # Set central widget in the main window
@@ -90,6 +102,14 @@ class PDFReader(QMainWindow):
         # Устанавливаем стили для заголовка QTreeWidget
         self.header.setStyleSheet("QHeaderView::section { background-color: #FFF; color: #000; }")  # Set styles for QTreeWidget header
         self.dark_mode_toggle.setText(" Dark Mode" )
+
+    def onScrollBarValueChanged(self, value):
+        """Обработчик события изменения значения ScrollBar."""
+        self.current_page = value
+        if self.dark_pdf_enabled:
+            self.showInvertedPage()  
+        else:
+            self.showPage()  
 
     def toggleDarkMode(self, checked):
         # Logic to toggle between dark mode and light mode
@@ -164,6 +184,7 @@ class PDFReader(QMainWindow):
                 self.doc = fitz.open(filePath)  # Open the selected PDF file
                 self.last_page = len(self.doc) - 1  # Update last_page value to index of last page
                 self.current_page = self.history[filePath]['page']  # Set current page from history
+                self.scrollBar.setRange(self.current_page, self.last_page)  # Обновляем диапазон ScrollBar
                 self.showPage()  # Display the PDF page as per history
                 self.showContents()  # Display table of contents
             except Exception as e:
@@ -172,6 +193,7 @@ class PDFReader(QMainWindow):
     def showPage(self):
         """Display the current PDF page."""
         page = self.doc.load_page(self.current_page)  # Load the current PDF page
+        #self.debug_print_page_attributes(page)
         pixmap = page.get_pixmap(matrix=fitz.Matrix(self.zoom_factor, self.zoom_factor)) # Get the pixmap of the PDF page
         img = QImage(pixmap.samples, pixmap.width, pixmap.height, pixmap.stride, QImage.Format.Format_RGB888) # Create QImage from the pixmap
 
@@ -184,6 +206,27 @@ class PDFReader(QMainWindow):
 
         # Set drag mode
         self.graphicsView.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+
+        # Обновляем значение ScrollBar при изменении страницы
+        self.scrollBar.setValue(self.current_page)
+
+    # Отладочный вывод всех параметров страницы
+    def debug_print_page_attributes(self, page: fitz.Page):
+        print("Page Number:", page.number)  # Номер страницы (нумерация с 0)
+        print("MediaBox:", page.mediabox)  # Ограничивающий прямоугольник страницы
+        print("CropBox:", page.cropbox)  # Прямоугольник обрезки страницы
+        print("BleedBox:", page.bleedbox)  # Прямоугольник обреза (для печати)
+        print("TrimBox:", page.trimbox)  # Прямоугольник обрезки (для вывода)
+        print("ArtBox:", page.artbox)  # Прямоугольник содержимого (для редактирования)
+        print("Rotation:", page.rotation)  # Поворот страницы (0, 90, 180, 270)
+        print("Text Length:", len(page.get_text()))  # Длина текста на странице
+        print("page.get_contents:", page.get_contents() )
+        textpage = page.get_textpage()
+        print("page.get_textpage().extractText() :", textpage.extractText() )
+        print("textpage.extractRAWDICT() :", textpage.extractRAWDICT())
+         # Извлекаем текстовые фрагменты страницы
+        
+
 
 
     def showInvertedPage(self):
@@ -338,7 +381,10 @@ class PDFReader(QMainWindow):
         """Обрабатывает нажатие на элемент оглавления."""
         page_num = item.data(Qt.ItemDataRole.UserRole)  # Get page number from user data
         self.current_page = page_num - 1  # Set current page
-        self.showPage()  # Display the selected page
+        if self.dark_pdf_enabled:
+                self.showInvertedPage()  
+        else:
+            self.showPage()  
         
         # Set scroll position to top upon navigation
         self.graphicsView.verticalScrollBar().setValue(0)
