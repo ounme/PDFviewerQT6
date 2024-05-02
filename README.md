@@ -7,8 +7,8 @@ python version used: 3.12.3
 To install and run the PDF Reader application, follow these steps:
 
    ```bash
-   git clone https://github.com/yourusername/pdf-reader.git
-   cd pdf-reader
+   git clone https://github.com/ounme/PDFviewerQT6.git
+   cd PDFviewerQT6
    # [optional add venv] python -m venv venv
    #    [win]            .\venv\Scripts\activate  
    #    [linux\macos]    source myvenv/bin/activate 
